@@ -130,6 +130,7 @@
                 <th>Type</th>
                 <th>Source</th>
                 <th>Destination</th>
+                <th>Host</th>
                 <th>Port</th>
                 <th>Message</th>
               </tr>
@@ -142,6 +143,7 @@
                   <td>{{ event.event_type }}</td>
                   <td>{{ event.src_ip or "-" }}</td>
                   <td>{{ event.dst_ip or "-" }}</td>
+                  <td>{{ event.fields.dst_host or "-" }}</td>
                   <td>{{ event.dst_port or "-" }}</td>
                   <td>{{ event.message }}</td>
                 </tr>

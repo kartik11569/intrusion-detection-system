@@ -18,6 +18,8 @@ The IDS can detect:
   command injection patterns.
 - Traffic spikes from a single source IP.
 - Known suspicious IPs or domains listed in `data/blocklist.txt`.
+- Proxifier connection spikes, repeated proxy errors, repeated zero-byte closes,
+  and local service traffic routed through a proxy.
 
 ## Technologies Used
 
@@ -59,6 +61,8 @@ The parser accepts common plain-text formats, including:
   `10.0.0.5 - - [09/May/2026:18:10:03 +0530] "GET /login?id=1' OR '1'='1 HTTP/1.1" 200 512`
 - Firewall/key-value logs:
   `2026-05-09T18:10:05 src=10.0.0.9 dst=10.0.0.2 dpt=22 action=DENY proto=TCP`
+- Proxifier logs:
+  `[10.30 16:49:07] chrome.exe - proxy.cse.cuhk.edu.hk:5070 close, 0 bytes sent, 0 bytes received, lifetime 00:01`
 
 ## Run
 

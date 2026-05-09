@@ -40,6 +40,21 @@ class IdsEngineTests(unittest.TestCase):
         self.assertEqual(events[0].fields["path"], "/login?id=1")
         self.assertEqual(events[0].event_type, "web_request")
 
+    def test_parser_extracts_proxifier_connection(self):
+        events = parse_log_lines(
+            [
+                "[10.30 16:49:07] chrome.exe - proxy.cse.cuhk.edu.hk:5070 close, 0 bytes sent, 0 bytes received, lifetime 00:01"
+            ]
+        )
+
+        self.assertEqual(events[0].fields["log_format"], "proxifier")
+        self.assertEqual(events[0].fields["app"], "chrome.exe")
+        self.assertEqual(events[0].fields["dst_host"], "proxy.cse.cuhk.edu.hk")
+        self.assertEqual(events[0].dst_port, 5070)
+        self.assertEqual(events[0].fields["sent_bytes"], "0")
+        self.assertEqual(events[0].fields["received_bytes"], "0")
+        self.assertEqual(events[0].event_type, "proxy_connection")
+
 
 if __name__ == "__main__":
     unittest.main()

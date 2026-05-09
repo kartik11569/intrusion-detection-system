@@ -22,6 +22,11 @@ APACHE_PATTERN = re.compile(
     r'\[(?P<timestamp>[^\]]+)\] "(?P<method>[A-Z]+) (?P<path>.*?) '
     r'HTTP/(?P<http_version>[^"]+)" (?P<status>\d{3}) (?P<size>\S+)'
 )
+PROXIFIER_PATTERN = re.compile(
+    r"^\[(?P<month>\d{2})\.(?P<day>\d{2}) (?P<clock>\d{2}:\d{2}:\d{2})\] "
+    r"(?P<app>.+?) - (?P<target>[^:\s]+):(?P<port>\d{1,5}) (?P<detail>.*)$"
+)
+BYTE_COUNT_PATTERN = re.compile(r"(?P<count>\d+)\s+bytes\s+(?P<direction>sent|received)", re.IGNORECASE)
 
 FAILED_LOGIN_PATTERNS = (
     "failed password",
@@ -104,6 +109,13 @@ def parse_timestamp(line: str) -> datetime | None:
     return None
 
 
+def parse_proxifier_timestamp(month: str, day: str, clock: str) -> datetime | None:
+    try:
+        return datetime.strptime(f"{datetime.now().year}-{month}-{day} {clock}", "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        return None
+
+
 def parse_port(value: str | None) -> int | None:
     if not value:
         return None
@@ -121,6 +133,8 @@ def normalize_ip(value: str | None) -> str | None:
 
 
 def classify_event(message: str, fields: dict[str, str]) -> str:
+    if fields.get("log_format") == "proxifier":
+        return "proxy_connection"
     lowered = message.lower()
     if any(pattern in lowered for pattern in FAILED_LOGIN_PATTERNS):
         return "failed_login"
@@ -137,6 +151,33 @@ def parse_line(line: str, line_no: int) -> Event:
     timestamp = parse_timestamp(line)
     fields = {key.lower(): value for key, value in KV_PATTERN.findall(line)}
     apache_match = APACHE_PATTERN.search(line)
+    proxifier_match = PROXIFIER_PATTERN.search(line)
+
+    if proxifier_match:
+        groups = proxifier_match.groupdict()
+        detail = groups["detail"]
+        timestamp = parse_proxifier_timestamp(groups["month"], groups["day"], groups["clock"])
+        fields.update(
+            {
+                "log_format": "proxifier",
+                "app": groups["app"].strip(),
+                "dst_host": groups["target"],
+                "dst_port": groups["port"],
+                "detail": detail,
+            }
+        )
+        if detail.startswith("open through proxy"):
+            fields["action"] = "open"
+        elif detail.startswith("close"):
+            fields["action"] = "close"
+        elif detail.startswith("error"):
+            fields["action"] = "error"
+        proxy_match = re.search(r"through proxy ([^:\s]+):(\d{1,5})", detail)
+        if proxy_match:
+            fields["proxy_host"] = proxy_match.group(1)
+            fields["proxy_port"] = proxy_match.group(2)
+        for byte_match in BYTE_COUNT_PATTERN.finditer(detail):
+            fields[f"{byte_match.group('direction').lower()}_bytes"] = byte_match.group("count")
 
     if apache_match:
         groups = apache_match.groupdict()
@@ -160,6 +201,7 @@ def parse_line(line: str, line_no: int) -> Event:
         normalize_ip(fields.get("dst"))
         or normalize_ip(fields.get("dst_ip"))
         or normalize_ip(fields.get("destination"))
+        or normalize_ip(fields.get("dst_host"))
         or (ips[1] if len(ips) > 1 else None)
     )
     dst_port = (
@@ -211,6 +253,21 @@ def time_bounds(events: Iterable[Event]) -> tuple[str | None, str | None]:
 
 def source_label(src_ip: str | None) -> str:
     return src_ip or "unknown"
+
+
+def event_actor(event: Event) -> str:
+    app = event.fields.get("app")
+    host = event.fields.get("dst_host")
+    if app and host:
+        return f"{app} -> {host}"
+    return source_label(event.src_ip)
+
+
+def field_int(event: Event, name: str) -> int | None:
+    try:
+        return int(event.fields[name])
+    except (KeyError, ValueError):
+        return None
 
 
 def detect_failed_logins(events: list[Event], threshold: int = 5, window_minutes: int = 10) -> list[Alert]:
@@ -419,6 +476,150 @@ def detect_blocklisted_indicators(events: list[Event], indicators: set[str]) -> 
     return alerts
 
 
+def detect_proxy_error_bursts(events: list[Event], threshold: int = 5, window_minutes: int = 15) -> list[Alert]:
+    grouped: dict[str, list[Event]] = defaultdict(list)
+    for event in events:
+        if event.fields.get("log_format") == "proxifier" and event.fields.get("action") == "error":
+            grouped[event.fields.get("app", "unknown app")].append(event)
+
+    alerts: list[Alert] = []
+    window = timedelta(minutes=window_minutes)
+    for app, items in grouped.items():
+        dated = sorted((item for item in items if item.timestamp), key=lambda item: item.timestamp or datetime.min)
+        if not dated and len(items) >= threshold:
+            alerts.append(
+                Alert(
+                    severity="high",
+                    rule="Proxy error burst",
+                    src_ip=app,
+                    summary=f"{len(items)} proxy errors from {app}.",
+                    evidence=f"Lines {items[0].line_no}-{items[-1].line_no}",
+                    first_seen=None,
+                    last_seen=None,
+                    count=len(items),
+                )
+            )
+            continue
+
+        start = 0
+        for end, event in enumerate(dated):
+            while dated[start].timestamp and event.timestamp and event.timestamp - dated[start].timestamp > window:
+                start += 1
+            count = end - start + 1
+            if count >= threshold:
+                window_items = dated[start : end + 1]
+                hosts = sorted({item.fields.get("dst_host", "unknown") for item in window_items})
+                first_seen, last_seen = time_bounds(window_items)
+                alerts.append(
+                    Alert(
+                        severity="high",
+                        rule="Proxy error burst",
+                        src_ip=app,
+                        summary=f"{count} proxy errors from {app} within {window_minutes} minutes.",
+                        evidence="Hosts: " + ", ".join(hosts[:8]),
+                        first_seen=first_seen,
+                        last_seen=last_seen,
+                        count=count,
+                    )
+                )
+                break
+    return alerts
+
+
+def detect_proxy_connection_spikes(events: list[Event], threshold: int = 30, window_minutes: int = 1) -> list[Alert]:
+    grouped: dict[str, list[Event]] = defaultdict(list)
+    for event in events:
+        if event.fields.get("log_format") == "proxifier":
+            grouped[event.fields.get("app", "unknown app")].append(event)
+
+    alerts: list[Alert] = []
+    window = timedelta(minutes=window_minutes)
+    for app, items in grouped.items():
+        dated = sorted((item for item in items if item.timestamp), key=lambda item: item.timestamp or datetime.min)
+        start = 0
+        for end, event in enumerate(dated):
+            while dated[start].timestamp and event.timestamp and event.timestamp - dated[start].timestamp > window:
+                start += 1
+            count = end - start + 1
+            if count >= threshold:
+                window_items = dated[start : end + 1]
+                hosts = sorted({item.fields.get("dst_host", "unknown") for item in window_items})
+                first_seen, last_seen = time_bounds(window_items)
+                alerts.append(
+                    Alert(
+                        severity="medium",
+                        rule="Proxy connection spike",
+                        src_ip=app,
+                        summary=f"{count} Proxifier events from {app} within {window_minutes} minute.",
+                        evidence="Hosts: " + ", ".join(hosts[:8]),
+                        first_seen=first_seen,
+                        last_seen=last_seen,
+                        count=count,
+                    )
+                )
+                break
+    return alerts
+
+
+def detect_zero_byte_proxy_closes(events: list[Event], threshold: int = 5, window_minutes: int = 10) -> list[Alert]:
+    grouped: dict[str, list[Event]] = defaultdict(list)
+    for event in events:
+        if event.fields.get("log_format") != "proxifier" or event.fields.get("action") != "close":
+            continue
+        if field_int(event, "sent_bytes") == 0 and field_int(event, "received_bytes") == 0:
+            grouped[event.fields.get("app", "unknown app")].append(event)
+
+    alerts: list[Alert] = []
+    window = timedelta(minutes=window_minutes)
+    for app, items in grouped.items():
+        dated = sorted((item for item in items if item.timestamp), key=lambda item: item.timestamp or datetime.min)
+        start = 0
+        for end, event in enumerate(dated):
+            while dated[start].timestamp and event.timestamp and event.timestamp - dated[start].timestamp > window:
+                start += 1
+            count = end - start + 1
+            if count >= threshold:
+                window_items = dated[start : end + 1]
+                hosts = sorted({item.fields.get("dst_host", "unknown") for item in window_items})
+                first_seen, last_seen = time_bounds(window_items)
+                alerts.append(
+                    Alert(
+                        severity="medium",
+                        rule="Repeated zero-byte proxy closes",
+                        src_ip=app,
+                        summary=f"{count} zero-byte proxy closes from {app} within {window_minutes} minutes.",
+                        evidence="Hosts: " + ", ".join(hosts[:8]),
+                        first_seen=first_seen,
+                        last_seen=last_seen,
+                        count=count,
+                    )
+                )
+                break
+    return alerts
+
+
+def detect_local_service_proxying(events: list[Event]) -> list[Alert]:
+    alerts: list[Alert] = []
+    for event in events:
+        if event.fields.get("log_format") != "proxifier":
+            continue
+        if event.fields.get("dst_host") not in {"127.0.0.1", "localhost"}:
+            continue
+        alerts.append(
+            Alert(
+                severity="medium",
+                rule="Local service routed through proxy",
+                src_ip=event.fields.get("app", event_actor(event)),
+                summary="A local service connection appeared in the Proxifier log.",
+                evidence=f"Line {event.line_no}: {event.message[:160]}",
+                first_seen=format_time(event.timestamp),
+                last_seen=format_time(event.timestamp),
+                count=1,
+            )
+        )
+    return alerts
+
+
 def severity_counts(alerts: list[Alert]) -> dict[str, int]:
     counts = Counter(alert.severity for alert in alerts)
     return {level: counts.get(level, 0) for level in ("critical", "high", "medium", "low")}
@@ -432,6 +633,10 @@ def analyze_events(events: list[Event], indicators: set[str] | None = None) -> d
     alerts.extend(detect_web_attacks(events))
     alerts.extend(detect_traffic_spikes(events))
     alerts.extend(detect_blocklisted_indicators(events, indicators))
+    alerts.extend(detect_proxy_error_bursts(events))
+    alerts.extend(detect_proxy_connection_spikes(events))
+    alerts.extend(detect_zero_byte_proxy_closes(events))
+    alerts.extend(detect_local_service_proxying(events))
 
     alerts.sort(key=lambda alert: ("critical", "high", "medium", "low").index(alert.severity))
     event_type_counts = Counter(event.event_type for event in events)
