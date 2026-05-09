@@ -51,6 +51,25 @@ The IDS can detect:
 - Local threat indicator list in `data/blocklist.txt`.
 - Realistic sample logs in the `samples/` folder.
 
+## Supported Log Types
+
+The project is built for plain-text security logs. It works best with these
+specific log types:
+
+- **SSH/Auth logs** - used to detect repeated failed login attempts and brute
+  force-style login behavior.
+- **Web server access logs** - used to detect suspicious HTTP requests such as
+  SQL injection, cross-site scripting, path traversal, and command injection
+  attempts.
+- **Firewall/network key-value logs** - used to detect possible port scans,
+  denied connection bursts, destination ports, source IPs, and traffic spikes.
+- **Proxifier logs** - used to detect proxy error bursts, high proxy connection
+  volume, repeated zero-byte connection closes, and local service traffic routed
+  through a proxy.
+- **Generic connection logs** - used for basic source IP/domain extraction,
+  traffic spike detection, and blocklisted indicator matching when recognizable
+  IPs or domains are present.
+
 ## Supported Log Examples
 
 The parser accepts common plain-text formats, including:
