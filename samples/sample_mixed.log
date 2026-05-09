@@ -1,0 +1,28 @@
+2026-05-09 18:10:01 Failed password for invalid user admin from 10.0.0.8 port 52844 ssh2
+2026-05-09 18:10:10 Failed password for invalid user root from 10.0.0.8 port 52845 ssh2
+2026-05-09 18:10:18 Failed password for invalid user test from 10.0.0.8 port 52846 ssh2
+2026-05-09 18:10:25 Failed password for invalid user oracle from 10.0.0.8 port 52847 ssh2
+2026-05-09 18:10:33 Failed password for invalid user postgres from 10.0.0.8 port 52848 ssh2
+10.0.0.5 - - [09/May/2026:18:10:03 +0530] "GET /login?id=1' OR '1'='1 HTTP/1.1" 200 512
+10.0.0.5 - - [09/May/2026:18:10:07 +0530] "GET /search?q=<script>alert(1)</script> HTTP/1.1" 200 841
+10.0.0.6 - - [09/May/2026:18:10:15 +0530] "GET /../../windows/win.ini HTTP/1.1" 404 291
+2026-05-09T18:11:01 src=10.0.0.9 dst=10.0.0.2 dpt=20 action=DENY proto=TCP
+2026-05-09T18:11:02 src=10.0.0.9 dst=10.0.0.2 dpt=21 action=DENY proto=TCP
+2026-05-09T18:11:03 src=10.0.0.9 dst=10.0.0.2 dpt=22 action=DENY proto=TCP
+2026-05-09T18:11:04 src=10.0.0.9 dst=10.0.0.2 dpt=23 action=DENY proto=TCP
+2026-05-09T18:11:05 src=10.0.0.9 dst=10.0.0.2 dpt=25 action=DENY proto=TCP
+2026-05-09T18:11:06 src=10.0.0.9 dst=10.0.0.2 dpt=53 action=DENY proto=TCP
+2026-05-09T18:11:07 src=10.0.0.9 dst=10.0.0.2 dpt=80 action=DENY proto=TCP
+2026-05-09T18:11:08 src=10.0.0.9 dst=10.0.0.2 dpt=110 action=DENY proto=TCP
+2026-05-09T18:11:09 src=10.0.0.9 dst=10.0.0.2 dpt=143 action=DENY proto=TCP
+2026-05-09T18:11:10 src=10.0.0.9 dst=10.0.0.2 dpt=443 action=DENY proto=TCP
+2026-05-09 18:12:01 connection accepted from 10.0.0.66 to internal service
+2026-05-09 18:12:02 connection accepted from 10.0.0.66 to internal service
+2026-05-09 18:12:03 connection accepted from 10.0.0.66 to internal service
+2026-05-09 18:12:04 connection accepted from 10.0.0.66 to internal service
+2026-05-09 18:12:05 connection accepted from 10.0.0.66 to internal service
+2026-05-09 18:12:06 connection accepted from 10.0.0.66 to internal service
+2026-05-09 18:12:07 connection accepted from 10.0.0.66 to internal service
+2026-05-09 18:12:08 connection accepted from 10.0.0.66 to internal service
+2026-05-09 18:12:09 connection accepted from 10.0.0.66 to internal service
+2026-05-09 18:12:10 connection accepted from 10.0.0.66 to internal service

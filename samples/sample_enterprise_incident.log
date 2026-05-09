@@ -1,0 +1,31 @@
+2026-05-09 19:01:02 Accepted password for devops from 172.16.1.21 port 51402 ssh2
+2026-05-09 19:01:14 Failed password for invalid user admin from 172.16.1.88 port 60111 ssh2
+2026-05-09 19:01:22 Failed password for invalid user test from 172.16.1.88 port 60112 ssh2
+2026-05-09 19:01:31 Failed password for invalid user oracle from 172.16.1.88 port 60113 ssh2
+2026-05-09 19:01:39 Failed password for invalid user postgres from 172.16.1.88 port 60114 ssh2
+2026-05-09 19:01:47 Failed password for invalid user backup from 172.16.1.88 port 60115 ssh2
+172.16.1.44 - - [09/May/2026:19:02:05 +0530] "GET /products?id=9 UNION SELECT username,password FROM users HTTP/1.1" 500 932
+172.16.1.45 - - [09/May/2026:19:02:18 +0530] "GET /profile?name=<script>alert(document.cookie)</script> HTTP/1.1" 200 1182
+172.16.1.46 - - [09/May/2026:19:02:31 +0530] "GET /download?file=../../../../etc/passwd HTTP/1.1" 403 421
+172.16.1.47 - - [09/May/2026:19:02:44 +0530] "GET /status?check=ok;%20whoami HTTP/1.1" 400 219
+2026-05-09T19:03:01 src=172.16.1.99 dst=172.16.1.10 dpt=21 action=DENY proto=TCP
+2026-05-09T19:03:02 src=172.16.1.99 dst=172.16.1.10 dpt=22 action=DENY proto=TCP
+2026-05-09T19:03:03 src=172.16.1.99 dst=172.16.1.10 dpt=23 action=DENY proto=TCP
+2026-05-09T19:03:04 src=172.16.1.99 dst=172.16.1.10 dpt=25 action=DENY proto=TCP
+2026-05-09T19:03:05 src=172.16.1.99 dst=172.16.1.10 dpt=53 action=DENY proto=TCP
+2026-05-09T19:03:06 src=172.16.1.99 dst=172.16.1.10 dpt=80 action=DENY proto=TCP
+2026-05-09T19:03:07 src=172.16.1.99 dst=172.16.1.10 dpt=110 action=DENY proto=TCP
+2026-05-09T19:03:08 src=172.16.1.99 dst=172.16.1.10 dpt=135 action=DENY proto=TCP
+2026-05-09T19:03:09 src=172.16.1.99 dst=172.16.1.10 dpt=139 action=DENY proto=TCP
+2026-05-09T19:03:10 src=172.16.1.99 dst=172.16.1.10 dpt=445 action=DENY proto=TCP
+2026-05-09 19:04:01 connection accepted from 192.168.56.101 to finance-db
+2026-05-09 19:04:02 connection accepted from 192.168.56.101 to finance-db
+2026-05-09 19:04:03 connection accepted from 192.168.56.101 to finance-db
+2026-05-09 19:04:04 connection accepted from 192.168.56.101 to finance-db
+2026-05-09 19:04:05 connection accepted from 192.168.56.101 to finance-db
+2026-05-09 19:04:06 connection accepted from 192.168.56.101 to finance-db
+2026-05-09 19:04:07 connection accepted from 192.168.56.101 to finance-db
+2026-05-09 19:04:08 connection accepted from 192.168.56.101 to finance-db
+2026-05-09 19:04:09 connection accepted from 192.168.56.101 to finance-db
+2026-05-09 19:04:10 connection accepted from 192.168.56.101 to finance-db
+2026-05-09 19:05:00 backup job completed successfully from 172.16.1.20

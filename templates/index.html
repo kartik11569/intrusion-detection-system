@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>IDS Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Python Flask IDS</p>
+        <h1>IDS Dashboard</h1>
+      </div>
+      <form class="upload-form" action="{{ url_for('analyze_upload') }}" method="post" enctype="multipart/form-data">
+        <input type="file" name="log_file" accept=".log,.txt,.csv" required>
+        <button type="submit">Analyze Log</button>
+      </form>
+    </header>
+
+    <main>
+      <section class="status-strip">
+        <article>
+          <span>Events</span>
+          <strong>{{ result.summary.events_analyzed }}</strong>
+        </article>
+        <article>
+          <span>Alerts</span>
+          <strong>{{ result.summary.alerts }}</strong>
+        </article>
+        <article>
+          <span>Critical</span>
+          <strong>{{ result.summary.severity_counts.critical }}</strong>
+        </article>
+        <article>
+          <span>High</span>
+          <strong>{{ result.summary.severity_counts.high }}</strong>
+        </article>
+        <article>
+          <span>Medium</span>
+          <strong>{{ result.summary.severity_counts.medium }}</strong>
+        </article>
+      </section>
+
+      <section class="meta-panel">
+        <div>
+          <span>Analyzed file</span>
+          <strong>{{ result.source_file }}</strong>
+        </div>
+        <div>
+          <span>Time range</span>
+          <strong>{{ result.summary.first_seen or "Unknown" }} to {{ result.summary.last_seen or "Unknown" }}</strong>
+        </div>
+        <div>
+          <span>Report generated</span>
+          <strong>{{ result.generated_at }}</strong>
+        </div>
+      </section>
+
+      <section class="grid">
+        <div class="panel alerts-panel">
+          <div class="panel-heading">
+            <h2>Alerts</h2>
+            <a href="{{ url_for('export_sample') }}">Export sample JSON</a>
+          </div>
+          {% if result.alerts %}
+            <div class="alert-list">
+              {% for alert in result.alerts %}
+                <article class="alert alert-{{ alert.severity }}">
+                  <div>
+                    <span class="severity">{{ alert.severity }}</span>
+                    <h3>{{ alert.rule }}</h3>
+                  </div>
+                  <p>{{ alert.summary }}</p>
+                  <dl>
+                    <div>
+                      <dt>Source</dt>
+                      <dd>{{ alert.src_ip }}</dd>
+                    </div>
+                    <div>
+                      <dt>Count</dt>
+                      <dd>{{ alert.count }}</dd>
+                    </div>
+                    <div>
+                      <dt>Evidence</dt>
+                      <dd>{{ alert.evidence }}</dd>
+                    </div>
+                  </dl>
+                </article>
+              {% endfor %}
+            </div>
+          {% else %}
+            <p class="empty">No alerts were triggered for this log.</p>
+          {% endif %}
+        </div>
+
+        <aside class="panel">
+          <h2>Top Sources</h2>
+          <div class="source-list">
+            {% for src, count in result.summary.top_sources %}
+              <div>
+                <span>{{ src }}</span>
+                <strong>{{ count }}</strong>
+              </div>
+            {% else %}
+              <p class="empty">No source IPs found.</p>
+            {% endfor %}
+          </div>
+
+          <h2>Event Types</h2>
+          <div class="source-list">
+            {% for event_type, count in result.summary.event_type_counts.items() %}
+              <div>
+                <span>{{ event_type.replace("_", " ") }}</span>
+                <strong>{{ count }}</strong>
+              </div>
+            {% endfor %}
+          </div>
+        </aside>
+      </section>
+
+      <section class="panel">
+        <h2>Parsed Events</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Line</th>
+                <th>Time</th>
+                <th>Type</th>
+                <th>Source</th>
+                <th>Destination</th>
+                <th>Port</th>
+                <th>Message</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for event in result.events %}
+                <tr>
+                  <td>{{ event.line_no }}</td>
+                  <td>{{ event.timestamp or "-" }}</td>
+                  <td>{{ event.event_type }}</td>
+                  <td>{{ event.src_ip or "-" }}</td>
+                  <td>{{ event.dst_ip or "-" }}</td>
+                  <td>{{ event.dst_port or "-" }}</td>
+                  <td>{{ event.message }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
